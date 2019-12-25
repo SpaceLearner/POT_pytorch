@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+
+Bregman pytorch projects for regularized OT
+"""
+
+# Author : Jacob Guo <Guojy001@outlook.com>
+# Licsense: MIT License
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,6 +19,67 @@ def sinkhorn(a, b, M, reg, method='sinkhorn', numItermax=1000):
 
     r"""
     Solve the entropic regularization optimal transport problem and return the OT matrix
+    
+    The function solves the following optimization problem:
+    .. math::
+        \gamma = arg\min_\gamma <\gamma,M>_F + reg\cdot\Omega(\gamma)
+        s.t. \gamma 1 = a
+             \gamma^T 1= b
+             \gamma\geq 0
+    where :
+    - M is the (dim_a, dim_b) metric cost matrix
+    - :math:`\Omega` is the entropic regularization term :math:`\Omega(\gamma)=\sum_{i,j} \gamma_{i,j}\log(\gamma_{i,j})`
+    - a and b are source and target weights (histograms, both sum to 1)
+    The algorithm used for solving the problem is the Sinkhorn-Knopp matrix scaling algorithm as proposed in [2]_
+    Parameters
+    ----------
+    a : ndarray, shape (dim_a,)
+        samples weights in the source domain
+    b : ndarray, shape (dim_b,) or ndarray, shape (dim_b, n_hists)
+        samples in the target domain, compute sinkhorn with multiple targets
+        and fixed M if b is a matrix (return OT loss + dual variables in log)
+    M : ndarray, shape (dim_a, dim_b)
+        loss matrix
+    reg : float
+        Regularization term >0
+    method : str
+        method used for the solver either 'sinkhorn', 'greenkhorn', 'sinkhorn_stabilized' or
+        'sinkhorn_epsilon_scaling', see those function for specific parameters
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    gamma : ndarray, shape (dim_a, dim_b)
+        Optimal transportation matrix for the given parameters
+    log : dict
+        log dictionary return only if log==True in parameters
+    Examples
+    --------
+    >>> import ot
+    >>> a=[.5, .5]
+    >>> b=[.5, .5]
+    >>> M=[[0., 1.], [1., 0.]]
+    >>> ot.sinkhorn(a, b, M, 1)
+    array([[0.36552929, 0.13447071],
+           [0.13447071, 0.36552929]])
+    References
+    ----------
+    .. [2] M. Cuturi, Sinkhorn Distances : Lightspeed Computation of Optimal Transport, Advances in Neural Information Processing Systems (NIPS) 26, 2013
+    .. [9] Schmitzer, B. (2016). Stabilized Sparse Scaling Algorithms for Entropy Regularized Transport Problems. arXiv preprint arXiv:1610.06519.
+    .. [10] Chizat, L., Peyré, G., Schmitzer, B., & Vialard, F. X. (2016). Scaling algorithms for unbalanced transport problems. arXiv preprint arXiv:1607.05816.
+    See Also
+    --------
+    ot.lp.emd : Unregularized OT
+    ot.optim.cg : General regularized OT
+    ot.bregman.sinkhorn_knopp : Classic Sinkhorn [2]
+    ot.bregman.sinkhorn_stabilized: Stabilized sinkhorn [9][10]
+    ot.bregman.sinkhorn_epsilon_scaling: Sinkhorn with epslilon scaling [9][10]
     """
 
     if method.lower() == 'sinkhorn':
@@ -28,7 +98,70 @@ def sinkhorn2(a, b, M, reg, method='sinkhorn', numItermax=1000,stopThr=1e-9, ver
 
     r"""
     Solve the entropic regularization optimal transport problem and return the loss
+    
+    The function solves the following optimization problem:
+    .. math::
+        W = \min_\gamma <\gamma,M>_F + reg\cdot\Omega(\gamma)
+        s.t. \gamma 1 = a
+             \gamma^T 1= b
+             \gamma\geq 0
+    where :
+    - M is the (dim_a, dim_b) metric cost matrix
+    - :math:`\Omega` is the entropic regularization term :math:`\Omega(\gamma)=\sum_{i,j} \gamma_{i,j}\log(\gamma_{i,j})`
+    - a and b are source and target weights (histograms, both sum to 1)
+    The algorithm used for solving the problem is the Sinkhorn-Knopp matrix scaling algorithm as proposed in [2]_
+    Parameters
+    ----------
+    a : ndarray, shape (dim_a,)
+        samples weights in the source domain
+    b : ndarray, shape (dim_b,) or ndarray, shape (dim_b, n_hists)
+        samples in the target domain, compute sinkhorn with multiple targets
+        and fixed M if b is a matrix (return OT loss + dual variables in log)
+    M : ndarray, shape (dim_a, dim_b)
+        loss matrix
+    reg : float
+        Regularization term >0
+    method : str
+        method used for the solver either 'sinkhorn',  'sinkhorn_stabilized' or
+        'sinkhorn_epsilon_scaling', see those function for specific parameters
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    W : (n_hists) ndarray or float
+        Optimal transportation loss for the given parameters
+    log : dict
+        log dictionary return only if log==True in parameters
+    Examples
+    --------
+    >>> import ot
+    >>> a=[.5, .5]
+    >>> b=[.5, .5]
+    >>> M=[[0., 1.], [1., 0.]]
+    >>> ot.sinkhorn2(a, b, M, 1)
+    array([0.26894142])
+    References
+    ----------
+    .. [2] M. Cuturi, Sinkhorn Distances : Lightspeed Computation of Optimal Transport, Advances in Neural Information Processing Systems (NIPS) 26, 2013
+    .. [9] Schmitzer, B. (2016). Stabilized Sparse Scaling Algorithms for Entropy Regularized Transport Problems. arXiv preprint arXiv:1610.06519.
+    .. [10] Chizat, L., Peyré, G., Schmitzer, B., & Vialard, F. X. (2016). Scaling algorithms for unbalanced transport problems. arXiv preprint arXiv:1607.05816.
+       [21] Altschuler J., Weed J., Rigollet P. : Near-linear time approximation algorithms for optimal transport via Sinkhorn iteration, Advances in Neural Information Processing Systems (NIPS) 31, 2017
+    See Also
+    --------
+    ot.lp.emd : Unregularized OT
+    ot.optim.cg : General regularized OT
+    ot.bregman.sinkhorn_knopp : Classic Sinkhorn [2]
+    ot.bregman.greenkhorn : Greenkhorn [21]
+    ot.bregman.sinkhorn_stabilized: Stabilized sinkhorn [9][10]
+    ot.bregman.sinkhorn_epsilon_scaling: Sinkhorn with epslilon scaling [9][10]
     """
+
     b = torch.Tensor(b).float()
     if len(b.shape) < 2:
         b = b[:, None]
@@ -44,6 +177,62 @@ def sinkhorn2(a, b, M, reg, method='sinkhorn', numItermax=1000,stopThr=1e-9, ver
 
 def sinkhorn_knopp(a, b, M, reg, numItermax=1000, stopThr=1e-9, verbose=False, log=False, **kwargs):
 
+    r"""
+    Solve the entropic regularization optimal transport problem and return the OT matrix
+    The function solves the following optimization problem:
+    .. math::
+        \gamma = arg\min_\gamma <\gamma,M>_F + reg\cdot\Omega(\gamma)
+        s.t. \gamma 1 = a
+             \gamma^T 1= b
+             \gamma\geq 0
+    where :
+    - M is the (dim_a, dim_b) metric cost matrix
+    - :math:`\Omega` is the entropic regularization term :math:`\Omega(\gamma)=\sum_{i,j} \gamma_{i,j}\log(\gamma_{i,j})`
+    - a and b are source and target weights (histograms, both sum to 1)
+    The algorithm used for solving the problem is the Sinkhorn-Knopp matrix scaling algorithm as proposed in [2]_
+    Parameters
+    ----------
+    a : ndarray, shape (dim_a,)
+        samples weights in the source domain
+    b : ndarray, shape (dim_b,) or ndarray, shape (dim_b, n_hists)
+        samples in the target domain, compute sinkhorn with multiple targets
+        and fixed M if b is a matrix (return OT loss + dual variables in log)
+    M : ndarray, shape (dim_a, dim_b)
+        loss matrix
+    reg : float
+        Regularization term >0
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    gamma : ndarray, shape (dim_a, dim_b)
+        Optimal transportation matrix for the given parameters
+    log : dict
+        log dictionary return only if log==True in parameters
+    Examples
+    --------
+    >>> import ot
+    >>> a=[.5, .5]
+    >>> b=[.5, .5]
+    >>> M=[[0., 1.], [1., 0.]]
+    >>> ot.sinkhorn(a, b, M, 1)
+    array([[0.36552929, 0.13447071],
+           [0.13447071, 0.36552929]])
+    References
+    ----------
+    .. [2] M. Cuturi, Sinkhorn Distances : Lightspeed Computation of Optimal Transport, Advances in Neural Information Processing Systems (NIPS) 26, 2013
+    See Also
+    --------
+    ot.lp.emd : Unregularized OT
+    ot.optim.cg : General regularized OT
+    """
+    
     a = torch.Tensor(a).float()
     b = torch.Tensor(b).float()
     M = torch.Tensor(M).float()
@@ -144,7 +333,66 @@ def sinkhorn_knopp(a, b, M, reg, numItermax=1000, stopThr=1e-9, verbose=False, l
 def sinkhorn_stabilized(a, b, M, reg, numItermax=1000, tau=1e3, stopThr=1e-9, warmstart=None, verbose=False, print_period=20, log=False, **kwargs):
 
     r"""
-    Solve the entropic regularization OT problem with log stabilization 
+    Solve the entropic regularization OT problem with log stabilization
+    The function solves the following optimization problem:
+    .. math::
+        \gamma = arg\min_\gamma <\gamma,M>_F + reg\cdot\Omega(\gamma)
+        s.t. \gamma 1 = a
+             \gamma^T 1= b
+             \gamma\geq 0
+    where :
+    - M is the (dim_a, dim_b) metric cost matrix
+    - :math:`\Omega` is the entropic regularization term :math:`\Omega(\gamma)=\sum_{i,j} \gamma_{i,j}\log(\gamma_{i,j})`
+    - a and b are source and target weights (histograms, both sum to 1)
+    The algorithm used for solving the problem is the Sinkhorn-Knopp matrix
+    scaling algorithm as proposed in [2]_ but with the log stabilization
+    proposed in [10]_ an defined in [9]_ (Algo 3.1) .
+    Parameters
+    ----------
+    a : ndarray, shape (dim_a,)
+        samples weights in the source domain
+    b : ndarray, shape (dim_b,)
+        samples in the target domain
+    M : ndarray, shape (dim_a, dim_b)
+        loss matrix
+    reg : float
+        Regularization term >0
+    tau : float
+        thershold for max value in u or v for log scaling
+    warmstart : tible of vectors
+        if given then sarting values for alpha an beta log scalings
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    gamma : ndarray, shape (dim_a, dim_b)
+        Optimal transportation matrix for the given parameters
+    log : dict
+        log dictionary return only if log==True in parameters
+    Examples
+    --------
+    >>> import ot
+    >>> a=[.5,.5]
+    >>> b=[.5,.5]
+    >>> M=[[0.,1.],[1.,0.]]
+    >>> ot.bregman.sinkhorn_stabilized(a, b, M, 1)
+    array([[0.36552929, 0.13447071],
+           [0.13447071, 0.36552929]])
+    References
+    ----------
+    .. [2] M. Cuturi, Sinkhorn Distances : Lightspeed Computation of Optimal Transport, Advances in Neural Information Processing Systems (NIPS) 26, 2013
+    .. [9] Schmitzer, B. (2016). Stabilized Sparse Scaling Algorithms for Entropy Regularized Transport Problems. arXiv preprint arXiv:1610.06519.
+    .. [10] Chizat, L., Peyré, G., Schmitzer, B., & Vialard, F. X. (2016). Scaling algorithms for unbalanced transport problems. arXiv preprint arXiv:1607.05816.
+    See Also
+    --------
+    ot.lp.emd : Unregularized OT
+    ot.optim.cg : General regularized OT
     """
 
     a = torch.Tensor(a).float()
@@ -292,6 +540,61 @@ def greenkhorn(a, b, M, reg, numItermax=10000, stopThr=1e-9, verbose=False, log=
 
     r"""
     Solve the entropic regularization optimal transport problem and return the OT matrix
+    The algorithm used is based on the paper
+    Near-linear time approximation algorithms for optimal transport via Sinkhorn iteration
+        by Jason Altschuler, Jonathan Weed, Philippe Rigollet
+        appeared at NIPS 2017
+    which is a stochastic version of the Sinkhorn-Knopp algorithm [2].
+    The function solves the following optimization problem:
+    .. math::
+        \gamma = arg\min_\gamma <\gamma,M>_F + reg\cdot\Omega(\gamma)
+        s.t. \gamma 1 = a
+             \gamma^T 1= b
+             \gamma\geq 0
+    where :
+    - M is the (dim_a, dim_b) metric cost matrix
+    - :math:`\Omega` is the entropic regularization term :math:`\Omega(\gamma)=\sum_{i,j} \gamma_{i,j}\log(\gamma_{i,j})`
+    - a and b are source and target weights (histograms, both sum to 1)
+    Parameters
+    ----------
+    a : ndarray, shape (dim_a,)
+        samples weights in the source domain
+    b : ndarray, shape (dim_b,) or ndarray, shape (dim_b, n_hists)
+        samples in the target domain, compute sinkhorn with multiple targets
+        and fixed M if b is a matrix (return OT loss + dual variables in log)
+    M : ndarray, shape (dim_a, dim_b)
+        loss matrix
+    reg : float
+        Regularization term >0
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    gamma : ndarray, shape (dim_a, dim_b)
+        Optimal transportation matrix for the given parameters
+    log : dict
+        log dictionary return only if log==True in parameters
+    Examples
+    --------
+    >>> import ot
+    >>> a=[.5, .5]
+    >>> b=[.5, .5]
+    >>> M=[[0., 1.], [1., 0.]]
+    >>> ot.bregman.greenkhorn(a, b, M, 1)
+    array([[0.36552929, 0.13447071],
+           [0.13447071, 0.36552929]])
+    References
+    ----------
+    .. [2] M. Cuturi, Sinkhorn Distances : Lightspeed Computation of Optimal Transport, Advances in Neural Information Processing Systems (NIPS) 26, 2013
+       [22] J. Altschuler, J.Weed, P. Rigollet : Near-linear time approximation algorithms for optimal transport via Sinkhorn iteration, Advances in Neural Information Processing Systems (NIPS) 31, 2017
+    See Also
+    --------
+    ot.lp.emd : Unregularized OT
+    ot.optim.cg : General regularized OT
     """
 
     a = torch.Tensor(a).float()
@@ -368,8 +671,71 @@ def greenkhorn(a, b, M, reg, numItermax=10000, stopThr=1e-9, verbose=False, log=
     
 def sinkhorn_epsilon_scaling(a, b, M, reg, numItermax=100, epsilon0=1e4, numInnerItermax=100, tau=1e3, stopThr=1e-9, warmstart=None, verbose=False, print_period=10, log=False, **kwargs):
 
-    """
-    Solve the entropic regularization optimal transport problem with log stabilization and epsilon scaling.
+    r"""
+    Solve the entropic regularization optimal transport problem with log
+    stabilization and epsilon scaling.
+    The function solves the following optimization problem:
+    .. math::
+        \gamma = arg\min_\gamma <\gamma,M>_F + reg\cdot\Omega(\gamma)
+        s.t. \gamma 1 = a
+             \gamma^T 1= b
+             \gamma\geq 0
+    where :
+    - M is the (dim_a, dim_b) metric cost matrix
+    - :math:`\Omega` is the entropic regularization term :math:`\Omega(\gamma)=\sum_{i,j} \gamma_{i,j}\log(\gamma_{i,j})`
+    - a and b are source and target weights (histograms, both sum to 1)
+    The algorithm used for solving the problem is the Sinkhorn-Knopp matrix
+    scaling algorithm as proposed in [2]_ but with the log stabilization
+    proposed in [10]_ and the log scaling proposed in [9]_ algorithm 3.2
+    Parameters
+    ----------
+    a : ndarray, shape (dim_a,)
+        samples weights in the source domain
+    b : ndarray, shape (dim_b,)
+        samples in the target domain
+    M : ndarray, shape (dim_a, dim_b)
+        loss matrix
+    reg : float
+        Regularization term >0
+    tau : float
+        thershold for max value in u or v for log scaling
+    warmstart : tuple of vectors
+        if given then sarting values for alpha an beta log scalings
+    numItermax : int, optional
+        Max number of iterations
+    numInnerItermax : int, optional
+        Max number of iterationsin the inner slog stabilized sinkhorn
+    epsilon0 : int, optional
+        first epsilon regularization value (then exponential decrease to reg)
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    gamma : ndarray, shape (dim_a, dim_b)
+        Optimal transportation matrix for the given parameters
+    log : dict
+        log dictionary return only if log==True in parameters
+    Examples
+    --------
+    >>> import ot
+    >>> a=[.5, .5]
+    >>> b=[.5, .5]
+    >>> M=[[0., 1.], [1., 0.]]
+    >>> ot.bregman.sinkhorn_epsilon_scaling(a, b, M, 1)
+    array([[0.36552929, 0.13447071],
+           [0.13447071, 0.36552929]])
+    References
+    ----------
+    .. [2] M. Cuturi, Sinkhorn Distances : Lightspeed Computation of Optimal Transport, Advances in Neural Information Processing Systems (NIPS) 26, 2013
+    .. [9] Schmitzer, B. (2016). Stabilized Sparse Scaling Algorithms for Entropy Regularized Transport Problems. arXiv preprint arXiv:1610.06519.
+    See Also
+    --------
+    ot.lp.emd : Unregularized OT
+    ot.optim.cg : General regularized OT
     """
 
     a = torch.Tensor(a).float()
@@ -479,6 +845,43 @@ def projC(gamma, q):
 def barycenter(A, M, reg, weights=None, method="sinkhorn", numItermax=10000, stopThr=1e-4, verbose=False, log=False, **kwargs):
 
     r"""Compute the entropic regularized wasserstein barycenter of distributions A
+     The function solves the following optimization problem:
+    .. math::
+       \mathbf{a} = arg\min_\mathbf{a} \sum_i W_{reg}(\mathbf{a},\mathbf{a}_i)
+    where :
+    - :math:`W_{reg}(\cdot,\cdot)` is the entropic regularized Wasserstein distance (see ot.bregman.sinkhorn)
+    - :math:`\mathbf{a}_i` are training distributions in the columns of matrix :math:`\mathbf{A}`
+    - reg and :math:`\mathbf{M}` are respectively the regularization term and the cost matrix for OT
+    The algorithm used for solving the problem is the Sinkhorn-Knopp matrix scaling algorithm as proposed in [3]_
+    Parameters
+    ----------
+    A : ndarray, shape (dim, n_hists)
+        n_hists training distributions a_i of size dim
+    M : ndarray, shape (dim, dim)
+        loss matrix for OT
+    reg : float
+        Regularization term > 0
+    method : str (optional)
+        method used for the solver either 'sinkhorn' or 'sinkhorn_stabilized'
+    weights : ndarray, shape (n_hists,)
+        Weights of each histogram a_i on the simplex (barycentric coodinates)
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    a : (dim,) ndarray
+        Wasserstein barycenter
+    log : dict
+        log dictionary return only if log==True in parameters
+    References
+    ----------
+    .. [3] Benamou, J. D., Carlier, G., Cuturi, M., Nenna, L., & Peyré, G. (2015). Iterative Bregman projections for regularized transportation problems. SIAM Journal on Scientific Computing, 37(2), A1111-A1138.
     """
 
     if method.lower() == 'sinkhorn':
@@ -498,6 +901,41 @@ def barycenter(A, M, reg, weights=None, method="sinkhorn", numItermax=10000, sto
 def barycenter_sinkhorn(A, M, reg, weights=None,numItermax=1000, stopThr=1e-4, verbose=False, log=False):
 
     r"""Compute the entropic regularized wasserstein barycenter of distributions A
+     The function solves the following optimization problem:
+    .. math::
+       \mathbf{a} = arg\min_\mathbf{a} \sum_i W_{reg}(\mathbf{a},\mathbf{a}_i)
+    where :
+    - :math:`W_{reg}(\cdot,\cdot)` is the entropic regularized Wasserstein distance (see ot.bregman.sinkhorn)
+    - :math:`\mathbf{a}_i` are training distributions in the columns of matrix :math:`\mathbf{A}`
+    - reg and :math:`\mathbf{M}` are respectively the regularization term and the cost matrix for OT
+    The algorithm used for solving the problem is the Sinkhorn-Knopp matrix scaling algorithm as proposed in [3]_
+    Parameters
+    ----------
+    A : ndarray, shape (dim, n_hists)
+        n_hists training distributions a_i of size dim
+    M : ndarray, shape (dim, dim)
+        loss matrix for OT
+    reg : float
+        Regularization term > 0
+    weights : ndarray, shape (n_hists,)
+        Weights of each histogram a_i on the simplex (barycentric coodinates)
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    a : (dim,) ndarray
+        Wasserstein barycenter
+    log : dict
+        log dictionary return only if log==True in parameters
+    References
+    ----------
+    .. [3] Benamou, J. D., Carlier, G., Cuturi, M., Nenna, L., & Peyré, G. (2015). Iterative Bregman projections for regularized transportation problems. SIAM Journal on Scientific Computing, 37(2), A1111-A1138.
     """
 
     if weights is None:
@@ -542,7 +980,45 @@ def barycenter_sinkhorn(A, M, reg, weights=None,numItermax=1000, stopThr=1e-4, v
 
 def barycenter_stabilized(A, M, reg, tau=1e10, weights=None,numItermax=1000, stopThr=1e-4, verbose=False, log=False):
 
-    r"""Compute the entropic regularized wasserstein barycenter of distributions A with stabilization.
+    r"""Compute the entropic regularized wasserstein barycenter of distributions A
+        with stabilization.
+     The function solves the following optimization problem:
+    .. math::
+       \mathbf{a} = arg\min_\mathbf{a} \sum_i W_{reg}(\mathbf{a},\mathbf{a}_i)
+    where :
+    - :math:`W_{reg}(\cdot,\cdot)` is the entropic regularized Wasserstein distance (see ot.bregman.sinkhorn)
+    - :math:`\mathbf{a}_i` are training distributions in the columns of matrix :math:`\mathbf{A}`
+    - reg and :math:`\mathbf{M}` are respectively the regularization term and the cost matrix for OT
+    The algorithm used for solving the problem is the Sinkhorn-Knopp matrix scaling algorithm as proposed in [3]_
+    Parameters
+    ----------
+    A : ndarray, shape (dim, n_hists)
+        n_hists training distributions a_i of size dim
+    M : ndarray, shape (dim, dim)
+        loss matrix for OT
+    reg : float
+        Regularization term > 0
+    tau : float
+        thershold for max value in u or v for log scaling
+    weights : ndarray, shape (n_hists,)
+        Weights of each histogram a_i on the simplex (barycentric coodinates)
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    a : (dim,) ndarray
+        Wasserstein barycenter
+    log : dict
+        log dictionary return only if log==True in parameters
+    References
+    ----------
+    .. [3] Benamou, J. D., Carlier, G., Cuturi, M., Nenna, L., & Peyré, G. (2015). Iterative Bregman projections for regularized transportation problems. SIAM Journal on Scientific Computing, 37(2), A1111-A1138.
     """
 
     dim, n_hists = A.shape
@@ -616,7 +1092,46 @@ def barycenter_stabilized(A, M, reg, tau=1e10, weights=None,numItermax=1000, sto
 
 
 def convolutional_barycenter2d(A, reg, weights=None, numItermax=10000, stopThr=1e-9, stabThr=1e-30, verbose=False, log=False):
-    r"""Compute the entropic regularized wasserstein barycenter of distributions A where A is a collection of 2D images.
+    
+    r"""Compute the entropic regularized wasserstein barycenter of distributions A
+    where A is a collection of 2D images.
+     The function solves the following optimization problem:
+    .. math::
+       \mathbf{a} = arg\min_\mathbf{a} \sum_i W_{reg}(\mathbf{a},\mathbf{a}_i)
+    where :
+    - :math:`W_{reg}(\cdot,\cdot)` is the entropic regularized Wasserstein distance (see ot.bregman.sinkhorn)
+    - :math:`\mathbf{a}_i` are training distributions (2D images) in the mast two dimensions of matrix :math:`\mathbf{A}`
+    - reg is the regularization strength scalar value
+    The algorithm used for solving the problem is the Sinkhorn-Knopp matrix scaling algorithm as proposed in [21]_
+    Parameters
+    ----------
+    A : ndarray, shape (n_hists, width, height)
+        n distributions (2D images) of size width x height
+    reg : float
+        Regularization term >0
+    weights : ndarray, shape (n_hists,)
+        Weights of each image on the simplex (barycentric coodinates)
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (> 0)
+    stabThr : float, optional
+        Stabilization threshold to avoid numerical precision issue
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    a : ndarray, shape (width, height)
+        2D Wasserstein barycenter
+    log : dict
+        log dictionary return only if log==True in parameters
+    References
+    ----------
+    .. [21] Solomon, J., De Goes, F., Peyré, G., Cuturi, M., Butscher, A., Nguyen, A. & Guibas, L. (2015).
+    Convolutional wasserstein distances: Efficient optimal transportation on geometric domains
+    ACM Transactions on Graphics (TOG), 34(4), 66
     """
 
      if weights is None:
@@ -674,6 +1189,270 @@ def convolutional_barycenter2d(A, reg, weights=None, numItermax=10000, stopThr=1
         return b
 
 
+def unimix(a, D, M, M0, h0, reg, alpha, numItermax=1000, stopThr=1e-3, verbose=False, log=False):
+
+    r"""
+    Compute the unmixing of an observation with a given dictionary using Wasserstein distance
+    The function solve the following optimization problem:
+    .. math::
+       \mathbf{h} = arg\min_\mathbf{h}  (1- \\alpha) W_{M,reg}(\mathbf{a},\mathbf{Dh})+\\alpha W_{M0,reg0}(\mathbf{h}_0,\mathbf{h})
+    where :
+    - :math:`W_{M,reg}(\cdot,\cdot)` is the entropic regularized Wasserstein distance with M loss matrix (see ot.bregman.sinkhorn)
+    - :math: `\mathbf{D}` is a dictionary of `n_atoms` atoms of dimension `dim_a`, its expected shape is `(dim_a, n_atoms)`
+    - :math:`\mathbf{h}` is the estimated unmixing of dimension `n_atoms`
+    - :math:`\mathbf{a}` is an observed distribution of dimension `dim_a`
+    - :math:`\mathbf{h}_0` is a prior on `h` of dimension `dim_prior`
+    - reg and :math:`\mathbf{M}` are respectively the regularization term and the cost matrix (dim_a, dim_a) for OT data fitting
+    - reg0 and :math:`\mathbf{M0}` are respectively the regularization term and the cost matrix (dim_prior, n_atoms) regularization
+    - :math:`\\alpha`weight data fitting and regularization
+    The optimization problem is solved suing the algorithm described in [4]
+    Parameters
+    ----------
+    a : ndarray, shape (dim_a)
+        observed distribution (histogram, sums to 1)
+    D : ndarray, shape (dim_a, n_atoms)
+        dictionary matrix
+    M : ndarray, shape (dim_a, dim_a)
+        loss matrix
+    M0 : ndarray, shape (n_atoms, dim_prior)
+        loss matrix
+    h0 : ndarray, shape (n_atoms,)
+        prior on the estimated unmixing h
+    reg : float
+        Regularization term >0 (Wasserstein data fitting)
+    reg0 : float
+        Regularization term >0 (Wasserstein reg with h0)
+    alpha : float
+        How much should we trust the prior ([0,1])
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    h : ndarray, shape (n_atoms,)
+        Wasserstein barycenter
+    log : dict
+        log dictionary return only if log==True in parameters
+    References
+    ----------
+    .. [4] S. Nakhostin, N. Courty, R. Flamary, D. Tuia, T. Corpetti, Supervised planetary unmixing with optimal transport, Whorkshop on Hyperspectral Image and Signal Processing : Evolution in Remote Sensing (WHISPERS), 2016.
+    """
+
+    # M = M/np.median(M)
+    K = torch.exp(-M / reg)
+
+    # M0 = M0/np.median(M0)
+    K0 = torch.exp(-M0 / reg0)
+    old = h0
+
+    err = 1
+    cpt = 0
+    # log = {'niter':0, 'all_err':[]}
+    if log:
+        log = {'err': []}
+
+    while (err > stopThr and cpt < numItermax):
+        K = projC(K, a)
+        K0 = projC(K0, h0)
+        new = torch.sum(K0, axis=1)
+        # we recombine the current selection from dictionnary
+        inv_new = torch.matmul(D, new)
+        other = torch.sum(K, axis=1)
+        # geometric interpolation
+        delta = torch.exp(alpha * torch.log(other) + (1 - alpha) * torch.log(inv_new))
+        K = projR(K, delta)
+        K0 = torch.matmul(torch.diag(torch.matmul(D.T, delta / inv_new)), K0)
+
+        err = torch.norm(torch.sum(K0, dim=1) - old)
+        old = new
+        if log:
+            log['err'].append(err)
+
+        if verbose:
+            if cpt % 200 == 0:
+                print('{:5s}|{:12s}'.format('It.', 'Err') + '\n' + '-' * 19)
+            print('{:5d}|{:8e}|'.format(cpt, err))
+
+        cpt = cpt + 1
+
+    if log:
+        log['niter'] = cpt
+        return torch.sum(K0, dim=1), log
+    else:
+        return torch.sum(K0, dim=1)
+
+
+def empirical_sinkhorn(X_s, X_t, reg, a=None, b=None, metric='sqeuclidean',
+                       numIterMax=10000, stopThr=1e-9, verbose=False,
+                       log=False, **kwargs):
+    r"""
+    Solve the entropic regularization optimal transport problem and return the
+    OT matrix from empirical data
+    
+    The function solves the following optimization problem:
+    .. math::
+        \gamma = arg\min_\gamma <\gamma,M>_F + reg\cdot\Omega(\gamma)
+        s.t. \gamma 1 = a
+             \gamma^T 1= b
+             \gamma\geq 0
+    where :
+    - :math:`M` is the (n_samples_a, n_samples_b) metric cost matrix
+    - :math:`\Omega` is the entropic regularization term :math:`\Omega(\gamma)=\sum_{i,j} \gamma_{i,j}\log(\gamma_{i,j})`
+    - :math:`a` and :math:`b` are source and target weights (sum to 1)
+    Parameters
+    ----------
+    X_s : ndarray, shape (n_samples_a, dim)
+        samples in the source domain
+    X_t : ndarray, shape (n_samples_b, dim)
+        samples in the target domain
+    reg : float
+        Regularization term >0
+    a : ndarray, shape (n_samples_a,)
+        samples weights in the source domain
+    b : ndarray, shape (n_samples_b,)
+        samples weights in the target domain
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    gamma : ndarray, shape (n_samples_a, n_samples_b)
+        Regularized optimal transportation matrix for the given parameters
+    log : dict
+        log dictionary return only if log==True in parameters
+    Examples
+    --------
+    >>> n_samples_a = 2
+    >>> n_samples_b = 2
+    >>> reg = 0.1
+    >>> X_s = np.reshape(np.arange(n_samples_a), (n_samples_a, 1))
+    >>> X_t = np.reshape(np.arange(0, n_samples_b), (n_samples_b, 1))
+    >>> empirical_sinkhorn(X_s, X_t, reg, verbose=False)  # doctest: +NORMALIZE_WHITESPACE
+    array([[4.99977301e-01,  2.26989344e-05],
+           [2.26989344e-05,  4.99977301e-01]])
+    References
+    ----------
+    .. [2] M. Cuturi, Sinkhorn Distances : Lightspeed Computation of Optimal Transport, Advances in Neural Information Processing Systems (NIPS) 26, 2013
+    .. [9] Schmitzer, B. (2016). Stabilized Sparse Scaling Algorithms for Entropy Regularized Transport Problems. arXiv preprint arXiv:1610.06519.
+    .. [10] Chizat, L., Peyré, G., Schmitzer, B., & Vialard, F. X. (2016). Scaling algorithms for unbalanced transport problems. arXiv preprint arXiv:1607.05816.
+    """
+
+    if a is None:
+        a = unif(X_s.shape[0])
+    if b is None:
+        b = unif(X_t.shape[0])
+
+    M = dist(X_s, X_t, metric=metric)
+
+    if log:
+        pi, log = sinkhorn(a, b, M, reg, numItermax=numIterMax, stopThr=stopThr, verbose=verbose, log=True, **kwargs)
+        return pi, log
+    else:
+        pi = sinkhorn(a, b, M, reg, numItermax=numIterMax, stopThr=stopThr, verbose=verbose, log=False, **kwargs)
+        return pi
+
+
+def empirical_sinkhorn_divergence(X_s, X_t, reg, a=None, b=None, metric='sqeuclidean', numIterMax=10000, stopThr=1e-9, verbose=False, log=False, **kwargs):
+    r'''
+    Compute the sinkhorn divergence loss from empirical data
+    The function solves the following optimization problems and return the
+    sinkhorn divergence :math:`S`:
+    .. math::
+        W &= \min_\gamma <\gamma,M>_F + reg\cdot\Omega(\gamma)
+        W_a &= \min_{\gamma_a} <\gamma_a,M_a>_F + reg\cdot\Omega(\gamma_a)
+        W_b &= \min_{\gamma_b} <\gamma_b,M_b>_F + reg\cdot\Omega(\gamma_b)
+        S &= W - 1/2 * (W_a + W_b)
+    .. math::
+        s.t. \gamma 1 = a
+             \gamma^T 1= b
+             \gamma\geq 0
+             \gamma_a 1 = a
+             \gamma_a^T 1= a
+             \gamma_a\geq 0
+             \gamma_b 1 = b
+             \gamma_b^T 1= b
+             \gamma_b\geq 0
+    where :
+    - :math:`M` (resp. :math:`M_a, M_b`) is the (n_samples_a, n_samples_b) metric cost matrix (resp (n_samples_a, n_samples_a) and (n_samples_b, n_samples_b))
+    - :math:`\Omega` is the entropic regularization term :math:`\Omega(\gamma)=\sum_{i,j} \gamma_{i,j}\log(\gamma_{i,j})`
+    - :math:`a` and :math:`b` are source and target weights (sum to 1)
+    Parameters
+    ----------
+    X_s : ndarray, shape (n_samples_a, dim)
+        samples in the source domain
+    X_t : ndarray, shape (n_samples_b, dim)
+        samples in the target domain
+    reg : float
+        Regularization term >0
+    a : ndarray, shape (n_samples_a,)
+        samples weights in the source domain
+    b : ndarray, shape (n_samples_b,)
+        samples weights in the target domain
+    numItermax : int, optional
+        Max number of iterations
+    stopThr : float, optional
+        Stop threshol on error (>0)
+    verbose : bool, optional
+        Print information along iterations
+    log : bool, optional
+        record log if True
+    Returns
+    -------
+    gamma : ndarray, shape (n_samples_a, n_samples_b)
+        Regularized optimal transportation matrix for the given parameters
+    log : dict
+        log dictionary return only if log==True in parameters
+    Examples
+    --------
+    >>> n_samples_a = 2
+    >>> n_samples_b = 4
+    >>> reg = 0.1
+    >>> X_s = np.reshape(np.arange(n_samples_a), (n_samples_a, 1))
+    >>> X_t = np.reshape(np.arange(0, n_samples_b), (n_samples_b, 1))
+    >>> empirical_sinkhorn_divergence(X_s, X_t, reg)  # doctest: +ELLIPSIS
+    array([1.499...])
+    References
+    ----------
+    .. [23] Aude Genevay, Gabriel Peyré, Marco Cuturi, Learning Generative Models with Sinkhorn Divergences,  Proceedings of the Twenty-First International Conference on Artficial Intelligence and Statistics, (AISTATS) 21, 2018
+    '''
+    if log:
+        sinkhorn_loss_ab, log_ab = empirical_sinkhorn2(X_s, X_t, reg, a, b, metric=metric, numIterMax=numIterMax, stopThr=1e-9, verbose=verbose, log=log, **kwargs)
+
+        sinkhorn_loss_a, log_a = empirical_sinkhorn2(X_s, X_s, reg, a, b, metric=metric, numIterMax=numIterMax, stopThr=1e-9, verbose=verbose, log=log, **kwargs)
+
+        sinkhorn_loss_b, log_b = empirical_sinkhorn2(X_t, X_t, reg, a, b, metric=metric, numIterMax=numIterMax, stopThr=1e-9, verbose=verbose, log=log, **kwargs)
+
+        sinkhorn_div = sinkhorn_loss_ab - 1 / 2 * (sinkhorn_loss_a + sinkhorn_loss_b)
+
+        log = {}
+        log['sinkhorn_loss_ab'] = sinkhorn_loss_ab
+        log['sinkhorn_loss_a'] = sinkhorn_loss_a
+        log['sinkhorn_loss_b'] = sinkhorn_loss_b
+        log['log_sinkhorn_ab'] = log_ab
+        log['log_sinkhorn_a'] = log_a
+        log['log_sinkhorn_b'] = log_b
+
+        return max(0, sinkhorn_div), log
+
+    else:
+        sinkhorn_loss_ab = empirical_sinkhorn2(X_s, X_t, reg, a, b, metric=metric, numIterMax=numIterMax, stopThr=1e-9, verbose=verbose, log=log, **kwargs)
+
+        sinkhorn_loss_a = empirical_sinkhorn2(X_s, X_s, reg, a, b, metric=metric, numIterMax=numIterMax, stopThr=1e-9, verbose=verbose, log=log, **kwargs)
+
+        sinkhorn_loss_b = empirical_sinkhorn2(X_t, X_t, reg, a, b, metric=metric, numIterMax=numIterMax, stopThr=1e-9, verbose=verbose, log=log, **kwargs)
+
+        sinkhorn_div = sinkhorn_loss_ab - 1 / 2 * (sinkhorn_loss_a + sinkhorn_loss_b)
+        return torch.max(torch.zeros(1), sinkhorn_div)
 
 
 
